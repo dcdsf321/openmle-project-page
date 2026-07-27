@@ -679,8 +679,9 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
       <span style="color:var(--orange);">◉ incumbent best</span>
     </div>
     <p class="fig-cap">
-      <span class="lbl">Live.</span> <b>OpenMLE-Evo</b> growing a population of executable programs —
-      node size ∝ validation score. Move your cursor to perturb it.
+      <span class="lbl">Live · illustrative simulation, not paper trace.</span>
+      <b>OpenMLE-Evo</b> growing a population of executable programs —
+      node size ∝ simulated validation score. Move your cursor to perturb it.
     </p>
   </div>
 </header>
@@ -1533,55 +1534,84 @@ function seq(steps){
     {name:'debug',    color:'#00C1D4', dash:[3,4], hollow:true},
     {name:'crossover',color:'#FA5F26', dash:[]}
   ];
-  let nodes=[],links=[],best=0,evals=0,epoch=1,fade=1,resetting=false;
+  let nodes=[],links=[],best=0,evals=0,epoch=1,fade=1,resetting=false,plateau=.88;
   const mouse={x:-1e4,y:-1e4};
   const hE=document.getElementById('hudEpoch'),hN=document.getElementById('hudNodes'),
         hB=document.getElementById('hudBest'),hO=document.getElementById('hudOp');
 
   function reset(){
     nodes=[];links=[];best=0;fade=1;resetting=false;
+    plateau=.82+Math.random()*.10;
     hE.textContent=epoch;
-    nodes.push({x:W*0.5,y:H*0.52,vx:0,vy:0,score:0.30+Math.random()*0.12,
-                op:OPS[0],r:5.5,born:performance.now(),root:true,kids:0});
+    const root={x:W*0.5,y:H*0.52,vx:0,vy:0,score:0.30+Math.random()*0.12,
+                op:OPS[0],r:5.2,born:performance.now(),root:true,kids:0};
+    nodes.push(root);best=root.score;hB.textContent=best.toFixed(3);
   }
   reset();
 
   function pick(){
+    const viable=nodes.filter(n=>!n.failed);
+    if(Math.random()<.28)return viable[(Math.random()*viable.length)|0];
     let bp=nodes[0],bu=-1;
-    for(const n of nodes){
-      if(n.failed)continue;
-      const u=n.score+Math.random()*0.5-(n.kids||0)*0.035;
+    for(const n of viable){
+      const novelty=1/(1+(n.kids||0));
+      const u=n.score+Math.random()*.18+novelty*.08-(n.kids||0)*.018;
       if(u>bu){bu=u;bp=n;}
     }
     return bp;
   }
 
+  function bell(){
+    let v=0;for(let i=0;i<6;i++)v+=Math.random();
+    return v-3;
+  }
+
   function spawn(){
-    if(nodes.length>120){resetting=true;return;}
+    if(nodes.length>96){resetting=true;return;}
     const w=Math.random();
     const op=w<0.16?OPS[0]:w<0.54?OPS[1]:w<0.74?OPS[2]:OPS[3];
     hO.textContent=op.name;
     const p1=pick();
+    let p2=null;
+    if(op.name==='crossover'&&nodes.length>4){
+      for(let tries=0;tries<5&&!p2;tries++){
+        const candidate=pick();
+        if(candidate!==p1)p2=candidate;
+      }
+    }
     const ang=Math.random()*Math.PI*2,d=58+Math.random()*70;
-    const failed=Math.random()<0.15&&op.name!=='debug';
+    const failRate=op.name==='draft'?.18:op.name==='improve'?.10:op.name==='debug'?.055:.12;
+    const failed=Math.random()<failRate;
     let score;
     if(failed)score=0;
     else{
-      const base=op.name==='draft'?0.28+Math.random()*0.25:p1.score;
-      const gain=op.name==='crossover'?Math.random()*0.14
-               :op.name==='improve'  ?Math.random()*0.10-0.015
-               :Math.random()*0.06;
-      score=Math.min(0.985,Math.max(0.05,base+gain));
+      let base=op.name==='draft'?.22+Math.random()*.36:p1.score;
+      if(op.name==='crossover'&&p2){
+        const hi=Math.max(p1.score,p2.score),lo=Math.min(p1.score,p2.score);
+        base=hi*.72+lo*.28;
+      }
+      let gain;
+      if(op.name==='draft')gain=0;
+      else if(op.name==='improve')gain=.018+bell()*.032;
+      else if(op.name==='debug')gain=.008+bell()*.025+(base<.55?.018:0);
+      else gain=.012+bell()*.026+(Math.random()<.18?.035+Math.random()*.035:0);
+      if(gain>0){
+        const headroom=Math.max(plateau-base,.015);
+        gain*=.24+Math.min(headroom/.55,1)*.76;
+      }
+      score=Math.max(.07,base+gain);
+      if(score>plateau)score=plateau-(.004+Math.random()*.014);
+      score=Math.min(.955,score);
     }
     const n={
       x:p1.x+Math.cos(ang)*d,y:p1.y+Math.sin(ang)*d,vx:0,vy:0,
-      score,op,failed,r:failed?2.6:3+score*5.5,born:performance.now(),kids:0
+      score,op,failed,r:failed?2.6:3.1+score*4.2,born:performance.now(),kids:0
     };
     p1.kids++;
     nodes.push(n);links.push({a:p1,b:n,op});
-    if(op.name==='crossover'&&nodes.length>4){
-      const p2=pick();
-      if(p2!==p1&&p2!==n)links.push({a:p2,b:n,op});
+    if(p2){
+      p2.kids++;
+      links.push({a:p2,b:n,op});
     }
     evals++;hN.textContent=evals;
     if(score>best){best=score;hB.textContent=best.toFixed(3);}
