@@ -453,6 +453,64 @@ h2 .or{color:var(--orange);}
 .case .medal.sv{background:var(--gray);}
 .case h4{margin-top:16px;font-family:var(--disp);font-size:17px;font-weight:600;color:var(--black);line-height:1.4;}
 .case .hr{margin-top:12px;font-family:var(--disp);font-size:34px;font-weight:700;color:var(--black);font-variant-numeric:tabular-nums;}
+
+/* ============ RL training trace ============ */
+.rl-summary{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:48px;
+}
+.rl-stat{
+  background:var(--surface);padding:22px 20px;border-top:2px solid var(--cyan);
+}
+.rl-stat.peak{background:var(--black);border-top-color:var(--orange);}
+.rl-stat .v{
+  font-family:var(--disp);font-size:clamp(24px,2.5vw,38px);font-weight:700;
+  color:var(--black);font-variant-numeric:tabular-nums;
+}
+.rl-stat.peak .v{color:var(--orange);}
+.rl-stat .k{
+  margin-top:7px;font-family:var(--mono);font-size:10px;line-height:1.5;
+  color:var(--dim);text-transform:uppercase;letter-spacing:.08em;
+}
+.rl-stat.peak .k{color:rgba(240,242,244,.62);}
+.rl-panel{
+  margin-top:22px;background:var(--black);color:var(--white);padding:28px 28px 22px;
+  position:relative;overflow:hidden;
+}
+.rl-panel-head{
+  align-items:flex-start;display:flex;justify-content:space-between;gap:24px;margin-bottom:20px;
+}
+.rl-panel-title{
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:rgba(240,242,244,.58);
+}
+.rl-panel-title b{color:var(--white);font-weight:600;}
+.rl-series{display:flex;flex-wrap:wrap;gap:8px;}
+.rl-series button{
+  align-items:center;background:transparent;border:1px solid rgba(240,242,244,.2);
+  border-radius:100px;color:rgba(240,242,244,.55);cursor:pointer;display:inline-flex;
+  font-family:var(--mono);font-size:9.5px;gap:7px;letter-spacing:.05em;padding:7px 10px;
+}
+.rl-series button::before{content:"";height:7px;width:7px;background:var(--cyan);}
+.rl-series button[data-series="validation"]::before{background:var(--orange);}
+.rl-series button[data-series="medals"]::before{background:var(--surface);}
+.rl-series button.off{opacity:.38;}
+.rl-canvas-wrap{height:420px;position:relative;}
+#rlCanvas{display:block;height:100%;width:100%;}
+.rl-tooltip{
+  background:var(--white);color:var(--gray);display:none;font-family:var(--mono);
+  font-size:10px;line-height:1.8;min-width:172px;padding:10px 12px;pointer-events:none;
+  position:absolute;z-index:3;
+}
+.rl-tooltip.show{display:block;}
+.rl-tooltip b{color:var(--black);}
+.rl-tooltip .cy{color:var(--cyan);}
+.rl-tooltip .or{color:var(--orange);}
+.rl-note{
+  border-top:1px solid rgba(240,242,244,.14);color:rgba(240,242,244,.55);
+  display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9.5px;line-height:1.6;margin-top:14px;padding-top:14px;
+}
+.rl-note b{color:var(--white);font-weight:500;}
 .case .hr small{font-family:var(--mono);font-size:11px;color:var(--dim);font-weight:400;margin-left:8px;}
 .case p{margin-top:12px;font-size:13px;color:var(--dim);line-height:1.8;}
 .case p b{color:var(--cyan);font-weight:600;}
@@ -523,11 +581,17 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
   .stats{grid-template-columns:repeat(3,1fr);}
   .loop-grid,.ops-grid,.duo,.cases,.jumps{grid-template-columns:1fr;}
   .cards3,.rel-grid,.mini3{grid-template-columns:1fr;}
+  .rl-summary{grid-template-columns:repeat(2,1fr);}
   .navlinks{display:none;}
   .rbar{grid-template-columns:1fr;gap:8px;}
   .rbar .lbl{text-align:left;}
 }
-@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:640px){
+  .stats,.rl-summary{grid-template-columns:repeat(2,1fr);}
+  .rl-panel{padding:22px 14px 18px;}
+  .rl-panel-head{flex-direction:column;}
+  .rl-canvas-wrap{height:350px;}
+}
 </style>
 </head>
 <body>
@@ -575,6 +639,7 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
     <a href="#stack">System</a>
     <a href="#operators">Operators</a>
     <a href="#results">Results</a>
+    <a href="#training">RL Trace</a>
     <a href="#bibtex">BibTeX</a>
     <a class="pill" href="#">arXiv ↗</a>
   </div>
@@ -1044,10 +1109,49 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
 
 <hr class="hairline">
 
+<!-- ================= RL TRAINING TRACE ================= -->
+<section id="training">
+  <div class="wrap">
+    <p class="eyebrow rv">06 · Reinforcement Learning Trace · Qwen3.6-35B-A3B</p>
+    <h2 class="rv">Training signal rises through<br><span class="cy">five stitched RL runs</span></h2>
+    <p class="lede rv">
+      The rollout reward is noisy by design, while held-out validation and medal count expose the
+      underlying learning trajectory. Hover the chart for exact checkpoint values.
+    </p>
+    <div class="rl-summary rv-st rv">
+      <div class="rl-stat"><p class="v">221</p><p class="k">RL updates · stitched steps 570–790</p></div>
+      <div class="rl-stat"><p class="v">0.180 → 0.400</p><p class="k">Rollout reward · first to final step</p></div>
+      <div class="rl-stat peak"><p class="v">0.404</p><p class="k">Peak validation base reward</p></div>
+      <div class="rl-stat"><p class="v">31</p><p class="k">Peak validation medal count</p></div>
+    </div>
+    <div class="rl-panel rv" id="rlPanel">
+      <div class="rl-panel-head">
+        <p class="rl-panel-title"><b>Reward / medals</b><br>stitched training step</p>
+        <div class="rl-series" aria-label="Toggle training series">
+          <button type="button" data-series="rollout">Rollout reward · EMA 9</button>
+          <button type="button" data-series="validation">Validation reward</button>
+          <button type="button" data-series="medals">Validation medals</button>
+        </div>
+      </div>
+      <div class="rl-canvas-wrap">
+        <canvas id="rlCanvas" role="img" aria-label="Interactive RL training curves for rollout reward, validation reward, and validation medal count"></canvas>
+        <div class="rl-tooltip" id="rlTooltip"></div>
+      </div>
+      <div class="rl-note">
+        <span>Left axis · <b>base reward</b></span>
+        <span>Right axis · <b>medal count</b></span>
+        <span>Source · <b>qwen36_rl_stitched.csv</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="hairline">
+
 <!-- ================= TRANSFER ================= -->
 <section id="transfer">
   <div class="wrap">
-    <p class="eyebrow rv">06 · Meta-Ability &amp; Transfer</p>
+    <p class="eyebrow rv">07 · Meta-Ability &amp; Transfer</p>
     <h2 class="rv">It learned <span class="cy">how to improve</span> —<br>not one leaderboard's tricks</h2>
     <p class="lede rv">
       NatureBench Lite, controlled: <b>hold the model or the framework fixed — both transfer.</b>
@@ -1077,7 +1181,7 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
 <!-- ================= RELEASE + BIBTEX ================= -->
 <section id="bibtex">
   <div class="wrap">
-    <p class="eyebrow rv">07 · Fully Open-Sourced</p>
+    <p class="eyebrow rv">08 · Fully Open-Sourced</p>
     <h2 class="rv">Everything released.<br>RSI research, <span class="cy">reproducible</span>.</h2>
     <div class="rel-grid rv-st rv">
       <div class="rel"><p class="idx">R-01</p><h4>Frontis-MA1 weights</h4><p>30B &amp; 35B post-trained checkpoints on HuggingFace.</p></div>
@@ -1164,6 +1268,184 @@ const bio=new IntersectionObserver(es=>es.forEach(e=>{
   }
 }),{threshold:.25});
 const rc=document.getElementById('resChart');if(rc)bio.observe(rc);
+
+/* ---------- RL training curves ---------- */
+(function(){
+  const panel=document.getElementById('rlPanel');
+  const canvas=document.getElementById('rlCanvas');
+  const tip=document.getElementById('rlTooltip');
+  if(!panel||!canvas||!tip)return;
+
+  const ctx=canvas.getContext('2d');
+  const state={rollout:true,validation:true,medals:true,progress:0,inView:false,loaded:false,data:[],ema:[],hover:-1};
+  let frame=0,w=0,h=0,dpr=1;
+  const pad={l:54,r:48,t:16,b:38};
+
+  function parseCSV(text){
+    const lines=text.trim().split(/\r?\n/);
+    const head=lines.shift().split(',');
+    const ix=name=>head.indexOf(name);
+    const value=(cols,name)=>{
+      const raw=cols[ix(name)];
+      return raw===''||raw==null?null:Number(raw);
+    };
+    return lines.map(line=>{
+      const cols=line.split(',');
+      return {
+        step:value(cols,'training_step'),
+        original:value(cols,'original_training_step'),
+        rollout:value(cols,'rollout_base_reward'),
+        validation:value(cols,'validation_base_reward'),
+        medals:value(cols,'validation_medal_count')
+      };
+    }).filter(d=>Number.isFinite(d.step)&&Number.isFinite(d.rollout));
+  }
+
+  function movingAverage(data,windowSize){
+    return data.map((d,i)=>{
+      const a=Math.max(0,i-windowSize+1);
+      const slice=data.slice(a,i+1);
+      return slice.reduce((sum,v)=>sum+v.rollout,0)/slice.length;
+    });
+  }
+
+  function resize(){
+    const rect=canvas.getBoundingClientRect();
+    w=Math.max(rect.width,1);h=Math.max(rect.height,1);
+    dpr=Math.min(devicePixelRatio||1,2);
+    canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    draw();
+  }
+
+  const x=i=>pad.l+(i/Math.max(state.data.length-1,1))*(w-pad.l-pad.r);
+  const yReward=v=>pad.t+(0.65-v)/(0.65-0.05)*(h-pad.t-pad.b);
+  const yMedals=v=>pad.t+(35-v)/35*(h-pad.t-pad.b);
+
+  function strokeSeries(points,color,width,alpha){
+    if(points.length<2)return;
+    ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.globalAlpha=alpha;
+    ctx.lineJoin='round';ctx.lineCap='round';ctx.beginPath();
+    points.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+    ctx.stroke();ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle='#000000';ctx.fillRect(0,0,w,h);
+    const plotW=w-pad.l-pad.r,plotH=h-pad.t-pad.b;
+
+    ctx.font='9.5px "IBM Plex Mono",monospace';
+    ctx.textBaseline='middle';
+    for(let i=0;i<=6;i++){
+      const reward=0.05+(0.60/6)*i;
+      const yy=yReward(reward);
+      ctx.strokeStyle='rgba(240,242,244,.12)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+      ctx.fillStyle='rgba(240,242,244,.46)';ctx.textAlign='right';
+      ctx.fillText(reward.toFixed(2),pad.l-9,yy);
+      ctx.textAlign='left';
+      ctx.fillText(String(Math.round((reward-.05)/.60*35)),w-pad.r+9,yy);
+    }
+
+    const xTicks=[0,55,110,165,220];
+    xTicks.forEach(step=>{
+      const xx=pad.l+(step/220)*plotW;
+      ctx.strokeStyle='rgba(240,242,244,.08)';
+      ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,pad.t+plotH);ctx.stroke();
+      ctx.fillStyle='rgba(240,242,244,.46)';ctx.textAlign='center';
+      ctx.fillText(String(step+570),xx,h-14);
+    });
+
+    if(!state.loaded){
+      ctx.fillStyle='rgba(240,242,244,.55)';ctx.textAlign='center';
+      ctx.fillText('LOADING RL TRACE…',w/2,h/2);
+      return;
+    }
+
+    const last=Math.min(state.data.length-1,Math.floor((state.data.length-1)*state.progress));
+    if(state.rollout){
+      const raw=state.data.slice(0,last+1).map((d,i)=>[x(i),yReward(d.rollout)]);
+      const ema=state.ema.slice(0,last+1).map((v,i)=>[x(i),yReward(v)]);
+      strokeSeries(raw,'#00C1D4',1,.2);
+      strokeSeries(ema,'#00C1D4',2.4,1);
+    }
+    if(state.validation){
+      const pts=state.data.slice(0,last+1).map((d,i)=>d.validation==null?null:[x(i),yReward(d.validation)]).filter(Boolean);
+      strokeSeries(pts,'#FA5F26',1.8,.9);
+      ctx.fillStyle='#FA5F26';
+      pts.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],3,0,7);ctx.fill();});
+    }
+    if(state.medals){
+      const pts=state.data.slice(0,last+1).map((d,i)=>d.medals==null?null:[x(i),yMedals(d.medals)]).filter(Boolean);
+      strokeSeries(pts,'#F0F2F4',1.2,.48);
+      ctx.fillStyle='#F0F2F4';ctx.globalAlpha=.72;
+      pts.forEach(p=>{ctx.fillRect(p[0]-2,p[1]-2,4,4);});
+      ctx.globalAlpha=1;
+    }
+
+    if(state.hover>=0){
+      const i=Math.min(state.hover,state.data.length-1),d=state.data[i],xx=x(i);
+      ctx.strokeStyle='rgba(240,242,244,.55)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,h-pad.b);ctx.stroke();
+      if(state.rollout){
+        ctx.fillStyle='#00C1D4';ctx.beginPath();ctx.arc(xx,yReward(state.ema[i]),4,0,7);ctx.fill();
+      }
+    }
+  }
+
+  function animate(ts){
+    if(!animate.t0)animate.t0=ts;
+    const p=Math.min((ts-animate.t0)/1500,1);
+    state.progress=1-Math.pow(1-p,4);draw();
+    if(p<1)frame=requestAnimationFrame(animate);
+  }
+
+  function maybeStart(){
+    if(!state.loaded||!state.inView||state.progress>0)return;
+    animate.t0=0;frame=requestAnimationFrame(animate);
+  }
+
+  panel.querySelectorAll('.rl-series button').forEach(button=>{
+    button.addEventListener('click',()=>{
+      const key=button.dataset.series;
+      state[key]=!state[key];
+      button.classList.toggle('off',!state[key]);
+      draw();
+    });
+  });
+
+  canvas.addEventListener('pointermove',event=>{
+    if(!state.loaded)return;
+    const rect=canvas.getBoundingClientRect();
+    const px=Math.max(pad.l,Math.min(event.clientX-rect.left,w-pad.r));
+    state.hover=Math.round((px-pad.l)/(w-pad.l-pad.r)*(state.data.length-1));
+    const d=state.data[state.hover];
+    tip.innerHTML='<b>step '+d.original+'</b><br>'+
+      '<span class="cy">rollout '+d.rollout.toFixed(3)+'</span> · EMA '+state.ema[state.hover].toFixed(3)+'<br>'+
+      '<span class="or">validation '+(d.validation==null?'—':d.validation.toFixed(3))+'</span><br>'+
+      'medals '+(d.medals==null?'—':Math.round(d.medals));
+    const tx=Math.min(Math.max(event.clientX-rect.left+14,8),w-184);
+    const ty=Math.min(Math.max(event.clientY-rect.top-68,8),h-92);
+    tip.style.left=tx+'px';tip.style.top=ty+'px';tip.classList.add('show');draw();
+  });
+  canvas.addEventListener('pointerleave',()=>{state.hover=-1;tip.classList.remove('show');draw();});
+
+  new ResizeObserver(resize).observe(canvas);
+  new IntersectionObserver(entries=>{
+    if(entries[0].isIntersecting){state.inView=true;maybeStart();}
+  },{threshold:.2}).observe(panel);
+
+  fetch('./qwen36_rl_stitched.csv').then(r=>{
+    if(!r.ok)throw new Error('CSV '+r.status);
+    return r.text();
+  }).then(text=>{
+    state.data=parseCSV(text);state.ema=movingAverage(state.data,9);state.loaded=true;draw();maybeStart();
+  }).catch(()=>{
+    state.loaded=false;ctx.fillStyle='#FA5F26';ctx.textAlign='center';
+    ctx.fillText('RL TRACE UNAVAILABLE',w/2,h/2);
+  });
+})();
 
 /* ---------- copy bibtex ---------- */
 document.getElementById('copyBib').addEventListener('click',()=>{
