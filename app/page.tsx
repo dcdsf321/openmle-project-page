@@ -63,7 +63,7 @@ export default function Home() {
           <a href="#results">Results</a>
           <a href="#citation">Citation</a>
         </nav>
-        <a className="nav-cta" href="/paper.pdf" target="_blank">
+        <a className="nav-cta" href="./paper.pdf" target="_blank">
           Read paper <Arrow />
         </a>
       </header>
@@ -93,7 +93,7 @@ export default function Home() {
               execution, and long-horizon search.
             </p>
             <div className="resource-row">
-              <a className="button button-primary" href="/paper.pdf" target="_blank">
+              <a className="button button-primary" href="./paper.pdf" target="_blank">
                 Paper PDF <Arrow />
               </a>
               <a
@@ -160,7 +160,7 @@ export default function Home() {
 
         <figure className="media-frame wide-media">
           <img
-            src="/media/teaser.png"
+            src="./media/teaser.png"
             alt="OpenMLE system overview showing Gym, ERL, and Evo components"
           />
           <figcaption>
@@ -243,7 +243,7 @@ export default function Home() {
 
         <figure className="media-frame dark-media">
           <img
-            src="/media/learning-rollouts.png"
+            src="./media/learning-rollouts.png"
             alt="Diagram showing how OpenMLE learns from executed rollouts"
           />
           <figcaption>
@@ -302,7 +302,7 @@ export default function Home() {
 
         <figure className="media-frame results-figure">
           <img
-            src="/media/main-results.png"
+            src="./media/main-results.png"
             alt="Main MLE-Bench Lite comparison and parameter-performance Pareto frontier"
           />
           <figcaption>
@@ -339,7 +339,7 @@ export default function Home() {
         </div>
         <figure className="media-frame sandbox-figure">
           <img
-            src="/media/sandbox-architecture.png"
+            src="./media/sandbox-architecture.png"
             alt="OpenMLE sandbox architecture"
           />
           <figcaption>
@@ -382,7 +382,7 @@ export default function Home() {
           </a>
           <p>MetA-Evolving towards Recursive Self-Improvement.</p>
           <div className="footer-links">
-            <a href="/paper.pdf" target="_blank">
+            <a href="./paper.pdf" target="_blank">
               Paper
             </a>
             <a href="https://github.com/FrontisAI" target="_blank" rel="noreferrer">
