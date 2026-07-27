@@ -18,7 +18,12 @@
 }
 
 html {
+  color-scheme: light;
   scroll-behavior: smooth;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 body {
@@ -29,6 +34,7 @@ body {
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 16px;
   text-rendering: optimizeLegibility;
+  transition: background-color 280ms var(--ease), color 280ms var(--ease);
 }
 
 a {
@@ -131,6 +137,45 @@ img {
   display: inline-flex;
   gap: 12px;
   justify-self: end;
+}
+
+.header-actions {
+  align-items: center;
+  display: flex;
+  gap: 28px;
+  justify-self: end;
+}
+
+.theme-toggle {
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--gray);
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: "JetBrains Mono", "IBM Plex Mono", monospace;
+  font-size: 11px;
+  gap: 9px;
+  height: 36px;
+  letter-spacing: 0.04em;
+  padding: 0 11px;
+  text-transform: uppercase;
+}
+
+.theme-toggle span {
+  color: var(--mid);
+  transition: color 240ms var(--ease);
+}
+
+.theme-toggle span.is-active {
+  color: currentColor;
+}
+
+.theme-toggle i {
+  background: var(--cyan);
+  border-radius: 50%;
+  height: 6px;
+  width: 6px;
 }
 
 .nav-cta span {
@@ -804,6 +849,119 @@ footer {
   color: var(--white);
 }
 
+/* Global theme states */
+html[data-theme="bright"] body,
+html[data-theme="bright"] .site-header,
+html[data-theme="bright"] .hero,
+html[data-theme="bright"] .section-dark,
+html[data-theme="bright"] footer {
+  background: var(--white);
+  color: var(--black);
+}
+
+html[data-theme="bright"] .site-header nav a,
+html[data-theme="bright"] .hero-lede,
+html[data-theme="bright"] .inverse .section-intro,
+html[data-theme="bright"] .operator-grid p,
+html[data-theme="bright"] .dark-media figcaption,
+html[data-theme="bright"] .footer-inner > p {
+  color: var(--gray);
+}
+
+html[data-theme="bright"] .button {
+  border-color: var(--border);
+}
+
+html[data-theme="bright"] .button:hover {
+  background: var(--soft);
+}
+
+html[data-theme="bright"] .button-primary {
+  background: var(--black);
+  border-color: var(--black);
+  color: var(--white);
+}
+
+html[data-theme="bright"] .aside-note {
+  border-color: var(--border);
+}
+
+html[data-theme="bright"] .threshold-diagram .state-line,
+html[data-theme="bright"] .strata-lines i {
+  background: var(--border);
+}
+
+html[data-theme="bright"] .dark-media figcaption span {
+  color: var(--black);
+}
+
+html[data-theme="bright"] .footer-links a,
+html[data-theme="bright"] .credit a {
+  color: var(--black);
+}
+
+html[data-theme="dark"] body,
+html[data-theme="dark"] .section-light,
+html[data-theme="dark"] .section-results,
+html[data-theme="dark"] .sandbox-section,
+html[data-theme="dark"] .citation-section,
+html[data-theme="dark"] .abstract-section {
+  background: var(--black);
+  color: var(--white);
+}
+
+html[data-theme="dark"] .section-intro,
+html[data-theme="dark"] .system-grid p,
+html[data-theme="dark"] .sandbox-copy > p,
+html[data-theme="dark"] .citation-section > div > p,
+html[data-theme="dark"] .guide-list span,
+html[data-theme="dark"] .abstract-copy p,
+html[data-theme="dark"] .media-frame figcaption {
+  color: var(--soft);
+}
+
+html[data-theme="dark"] .abstract-copy .abstract-lead,
+html[data-theme="dark"] .media-frame figcaption span {
+  color: var(--white);
+}
+
+html[data-theme="dark"] .results-figure img,
+html[data-theme="dark"] .sandbox-figure img {
+  background: var(--white);
+  border-color: var(--gray);
+}
+
+html[data-theme="dark"] .citation-section {
+  border-color: var(--gray);
+}
+
+html[data-theme="dark"] .citation-block {
+  background: var(--gray);
+}
+
+html[data-theme="dark"] .citation-block code {
+  color: var(--soft);
+}
+
+html[data-theme="dark"] .citation-block button {
+  background: var(--white);
+  color: var(--black);
+}
+
+html[data-theme="dark"] .system-index,
+html[data-theme="dark"] .result-label,
+html[data-theme="dark"] .result-steps article > span {
+  color: var(--mid);
+}
+
+html[data-theme="dark"] .site-header,
+html[data-theme="dark"] .hero,
+html[data-theme="dark"] .section-dark,
+html[data-theme="dark"] footer {
+  background: var(--black);
+  color: var(--white);
+}
+
 .footer-inner {
   display: grid;
   gap: 48px;
@@ -889,6 +1047,10 @@ footer {
     display: none;
   }
 
+  .header-actions {
+    gap: 18px;
+  }
+
   .hero-grid,
   .section-heading,
   .sandbox-section,
@@ -937,7 +1099,13 @@ footer {
   }
 
   .nav-cta {
-    font-size: 12px;
+    display: none;
+  }
+
+  .theme-toggle {
+    font-size: 10px;
+    gap: 7px;
+    padding: 0 9px;
   }
 
   .hero {

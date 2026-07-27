@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type Theme = "bright" | "dark";
 
 const operators = [
   {
@@ -39,11 +41,25 @@ function Arrow({ down = false }: { down?: boolean }) {
 
 export default function Home() {
   const [copied, setCopied] = useState(false);
+  const [theme, setTheme] = useState<Theme>("bright");
+
+  useEffect(() => {
+    const activeTheme =
+      document.documentElement.dataset.theme === "dark" ? "dark" : "bright";
+    setTheme(activeTheme);
+  }, []);
 
   async function copyCitation() {
     await navigator.clipboard.writeText(bibtex);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  function toggleTheme() {
+    const nextTheme: Theme = theme === "bright" ? "dark" : "bright";
+    document.documentElement.dataset.theme = nextTheme;
+    localStorage.setItem("openmle-theme", nextTheme);
+    setTheme(nextTheme);
   }
 
   return (
@@ -63,9 +79,22 @@ export default function Home() {
           <a href="#results">Results</a>
           <a href="#citation">Citation</a>
         </nav>
-        <a className="nav-cta" href="./paper.pdf" target="_blank">
-          Read paper <Arrow />
-        </a>
+        <div className="header-actions">
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "bright" ? "dark" : "bright"} mode`}
+            aria-pressed={theme === "dark"}
+          >
+            <span className={theme === "bright" ? "is-active" : ""}>Bright</span>
+            <i aria-hidden="true" />
+            <span className={theme === "dark" ? "is-active" : ""}>Dark</span>
+          </button>
+          <a className="nav-cta" href="./paper.pdf" target="_blank">
+            Read paper <Arrow />
+          </a>
+        </div>
       </header>
 
       <section className="hero strata-zone" id="top">

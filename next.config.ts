@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
+const isGitHubPages = process.env.GITHUB_PAGES === "true";
+
 const nextConfig: NextConfig = {
-  output: "export",
-  basePath: "/openmle-project-page",
-  assetPrefix: "/openmle-project-page",
+  output: isGitHubPages ? "export" : undefined,
+  basePath: isGitHubPages ? "/openmle-project-page" : "",
+  assetPrefix: isGitHubPages ? "/openmle-project-page" : "",
   images: {
     unoptimized: true,
   },
