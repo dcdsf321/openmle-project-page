@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Theme = "bright" | "dark";
 
@@ -39,14 +39,401 @@ function Arrow({ down = false }: { down?: boolean }) {
   return <span aria-hidden="true">{down ? "↓" : "↗"}</span>;
 }
 
+function CountUp({
+  value,
+  decimals = 2,
+  suffix = "",
+}: {
+  value: number;
+  decimals?: number;
+  suffix?: string;
+}) {
+  const numberRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const element = numberRef.current;
+    if (!element) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    const renderValue = (current: number) => {
+      element.textContent = `${current.toFixed(decimals)}${suffix}`;
+    };
+
+    if (reducedMotion) {
+      renderValue(value);
+      return;
+    }
+
+    let frame = 0;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        const start = performance.now();
+        const duration = 1250;
+
+        const animate = (now: number) => {
+          const progress = Math.min((now - start) / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 4);
+          renderValue(value * eased);
+          if (progress < 1) frame = requestAnimationFrame(animate);
+        };
+
+        frame = requestAnimationFrame(animate);
+        observer.disconnect();
+      },
+      { threshold: 0.45 },
+    );
+
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [decimals, suffix, value]);
+
+  return <span ref={numberRef}>{`0${suffix}`}</span>;
+}
+
+type SearchNode = {
+  parent: number | null;
+  x: number;
+  y: number;
+  operator: "Draft" | "Improve" | "Debug" | "Crossover";
+  score: number;
+  failed?: boolean;
+};
+
+const searchNodes: SearchNode[] = [
+  { parent: null, x: 0.5, y: 0.5, operator: "Draft", score: 0.28 },
+  { parent: 0, x: 0.35, y: 0.32, operator: "Improve", score: 0.39 },
+  { parent: 0, x: 0.34, y: 0.68, operator: "Draft", score: 0.33 },
+  { parent: 0, x: 0.64, y: 0.31, operator: "Debug", score: 0.31 },
+  { parent: 1, x: 0.2, y: 0.2, operator: "Improve", score: 0.47 },
+  { parent: 1, x: 0.19, y: 0.44, operator: "Debug", score: 0, failed: true },
+  { parent: 2, x: 0.18, y: 0.8, operator: "Improve", score: 0.45 },
+  { parent: 3, x: 0.8, y: 0.2, operator: "Improve", score: 0.44 },
+  { parent: 3, x: 0.81, y: 0.46, operator: "Debug", score: 0.42 },
+  { parent: 2, x: 0.47, y: 0.82, operator: "Improve", score: 0.51 },
+  { parent: 4, x: 0.08, y: 0.12, operator: "Debug", score: 0.49 },
+  { parent: 6, x: 0.08, y: 0.9, operator: "Improve", score: 0.56 },
+  { parent: 7, x: 0.92, y: 0.11, operator: "Improve", score: 0.53 },
+  { parent: 8, x: 0.93, y: 0.56, operator: "Draft", score: 0, failed: true },
+  { parent: 9, x: 0.68, y: 0.88, operator: "Improve", score: 0.6 },
+  { parent: 4, x: 0.36, y: 0.12, operator: "Crossover", score: 0.63 },
+  { parent: 14, x: 0.84, y: 0.82, operator: "Crossover", score: 0.71 },
+];
+
+function EvolutionSearch({ theme }: { theme: Theme }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [replay, setReplay] = useState(0);
+  const [hud, setHud] = useState({
+    nodes: 1,
+    best: searchNodes[0].score,
+    operator: searchNodes[0].operator,
+    complete: false,
+  });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const stage = stageRef.current;
+    if (!canvas || !stage) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const palette = {
+      background: theme === "dark" ? "#000000" : "#FFFFFF",
+      gray: "#3D4145",
+      soft: "#F0F2F4",
+      cyan: "#00C1D4",
+      orange: "#FA5F26",
+      text: theme === "dark" ? "#F0F2F4" : "#3D4145",
+    };
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let frame = 0;
+    let startTime = 0;
+    let lastHudCount = 0;
+
+    const resize = () => {
+      const bounds = stage.getBoundingClientRect();
+      width = bounds.width;
+      height = bounds.height;
+      pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    };
+
+    const point = (node: SearchNode) => ({
+      x: 30 + node.x * Math.max(width - 60, 1),
+      y: 42 + node.y * Math.max(height - 84, 1),
+    });
+
+    const draw = (visibleProgress: number) => {
+      context.clearRect(0, 0, width, height);
+      context.fillStyle = palette.background;
+      context.fillRect(0, 0, width, height);
+
+      context.strokeStyle = theme === "dark" ? palette.gray : "#D0D3D8";
+      context.lineWidth = 1;
+      context.globalAlpha = 0.55;
+      for (let index = 1; index < 8; index += 1) {
+        const y = (height / 8) * index;
+        context.beginPath();
+        context.moveTo(0, y);
+        context.lineTo(width, y);
+        context.stroke();
+      }
+      context.globalAlpha = 1;
+
+      const exactProgress = visibleProgress * (searchNodes.length - 1);
+      const visibleCount = Math.min(
+        searchNodes.length,
+        Math.floor(exactProgress) + 1,
+      );
+      const activeProgress = exactProgress - Math.floor(exactProgress);
+      const bestScore = Math.max(
+        ...searchNodes.slice(0, visibleCount).map((node) => node.score),
+      );
+
+      for (let index = 1; index < visibleCount; index += 1) {
+        const node = searchNodes[index];
+        if (node.parent === null) continue;
+        const parent = searchNodes[node.parent];
+        const from = point(parent);
+        const to = point(node);
+        const lineProgress =
+          index === visibleCount - 1 && visibleCount < searchNodes.length
+            ? activeProgress
+            : 1;
+        const color =
+          node.operator === "Improve" || node.operator === "Debug"
+            ? palette.cyan
+            : palette.gray;
+
+        context.strokeStyle = color;
+        context.globalAlpha = node.failed ? 0.34 : 0.56;
+        context.lineWidth = node.operator === "Crossover" ? 2 : 1.25;
+        context.setLineDash(node.operator === "Debug" ? [5, 6] : []);
+        context.beginPath();
+        context.moveTo(from.x, from.y);
+        context.lineTo(
+          from.x + (to.x - from.x) * lineProgress,
+          from.y + (to.y - from.y) * lineProgress,
+        );
+        context.stroke();
+      }
+      context.setLineDash([]);
+      context.globalAlpha = 1;
+
+      for (let index = 0; index < visibleCount; index += 1) {
+        const node = searchNodes[index];
+        const position = point(node);
+        const isBest = node.score === bestScore && !node.failed;
+        const nodeProgress =
+          index === visibleCount - 1 && visibleCount < searchNodes.length
+            ? Math.min(activeProgress * 2.2, 1)
+            : 1;
+        const radius = (4 + node.score * 6) * nodeProgress;
+
+        if (node.failed) {
+          context.strokeStyle = palette.gray;
+          context.globalAlpha = 0.7;
+          context.lineWidth = 1.5;
+          context.beginPath();
+          context.moveTo(position.x - 5, position.y - 5);
+          context.lineTo(position.x + 5, position.y + 5);
+          context.moveTo(position.x + 5, position.y - 5);
+          context.lineTo(position.x - 5, position.y + 5);
+          context.stroke();
+          context.globalAlpha = 1;
+          continue;
+        }
+
+        context.fillStyle = isBest
+          ? palette.orange
+          : node.operator === "Improve" || node.operator === "Debug"
+            ? palette.cyan
+            : palette.gray;
+        context.globalAlpha = index === 0 ? 1 : 0.85;
+        context.beginPath();
+        context.arc(position.x, position.y, radius, 0, Math.PI * 2);
+        context.fill();
+        context.globalAlpha = 1;
+
+        if (isBest) {
+          context.strokeStyle = palette.orange;
+          context.lineWidth = 1.5;
+          context.beginPath();
+          context.arc(position.x, position.y, radius + 6, 0, Math.PI * 2);
+          context.stroke();
+          context.fillStyle = palette.text;
+          context.font = '12px "IBM Plex Mono", monospace';
+          context.fillText(
+            bestScore.toFixed(2),
+            position.x + radius + 12,
+            position.y + 4,
+          );
+        }
+      }
+
+      if (visibleCount !== lastHudCount) {
+        lastHudCount = visibleCount;
+        const latest = searchNodes[visibleCount - 1];
+        setHud({
+          nodes: visibleCount,
+          best: bestScore,
+          operator: latest.operator,
+          complete: visibleCount === searchNodes.length,
+        });
+      }
+    };
+
+    resize();
+    const resizeObserver = new ResizeObserver(() => {
+      resize();
+      draw(reducedMotion ? 1 : 0);
+    });
+    resizeObserver.observe(stage);
+
+    if (reducedMotion) {
+      draw(1);
+    } else {
+      const duration = 6200;
+      const animate = (time: number) => {
+        if (!startTime) startTime = time;
+        const progress = Math.min((time - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        draw(eased);
+        if (progress < 1) frame = requestAnimationFrame(animate);
+      };
+      frame = requestAnimationFrame(animate);
+    }
+
+    return () => {
+      cancelAnimationFrame(frame);
+      resizeObserver.disconnect();
+    };
+  }, [replay, theme]);
+
+  return (
+    <div className="evolution-figure motion-reveal">
+      <div className="evolution-stage" ref={stageRef}>
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label="Animated OpenMLE evolutionary program search tree"
+        />
+        <div className="evolution-hud" aria-live="polite">
+          <span className="live-state">{hud.complete ? "COMPLETE" : "EVOLVING"}</span>
+          <span>
+            nodes <b>{hud.nodes}</b>
+          </span>
+          <span>
+            best <b>{hud.best.toFixed(2)}</b>
+          </span>
+          <span>
+            operator <b>{hud.operator}</b>
+          </span>
+        </div>
+        <button
+          className="replay-button"
+          type="button"
+          onClick={() => setReplay((value) => value + 1)}
+          aria-label="Replay evolutionary search animation"
+        >
+          Replay ↻
+        </button>
+      </div>
+      <div className="evolution-legend" aria-label="Search operator legend">
+        <span>
+          <i className="legend-node draft" /> Draft
+        </span>
+        <span>
+          <i className="legend-node improve" /> Improve
+        </span>
+        <span>
+          <i className="legend-node debug" /> Debug
+        </span>
+        <span>
+          <i className="legend-node crossover" /> Crossover
+        </span>
+        <span>
+          <i className="legend-failed" /> Failed run
+        </span>
+      </div>
+      <p className="evolution-caption">
+        <strong>Live simulation.</strong> OpenMLE-Evo expands executable programs,
+        scores each branch in the sandbox, and preserves the incumbent best.
+      </p>
+    </div>
+  );
+}
+
 export default function Home() {
   const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState<Theme>("bright");
+  const scrollProgressRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const activeTheme =
       document.documentElement.dataset.theme === "dark" ? "dark" : "bright";
     setTheme(activeTheme);
+  }, []);
+
+  useEffect(() => {
+    const progressBar = scrollProgressRef.current;
+    if (!progressBar) return;
+    document.documentElement.classList.add("motion-ready");
+
+    const updateProgress = () => {
+      const root = document.documentElement;
+      const distance = root.scrollHeight - root.clientHeight;
+      const progress = distance > 0 ? root.scrollTop / distance : 0;
+      progressBar.style.transform = `scaleX(${progress})`;
+    };
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    const revealElements = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        ".motion-reveal, .motion-stagger",
+      ),
+    );
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        });
+      },
+      { threshold: 0.14, rootMargin: "0px 0px -48px 0px" },
+    );
+
+    revealElements.forEach((element) => {
+      if (reducedMotion) element.classList.add("is-visible");
+      else revealObserver.observe(element);
+    });
+    updateProgress();
+    window.addEventListener("scroll", updateProgress, { passive: true });
+
+    return () => {
+      revealObserver.disconnect();
+      window.removeEventListener("scroll", updateProgress);
+    };
   }, []);
 
   async function copyCitation() {
@@ -64,6 +451,7 @@ export default function Home() {
 
   return (
     <main>
+      <div className="scroll-progress" ref={scrollProgressRef} />
       <header className="site-header">
         <a className="brand" href="#top" aria-label="OpenMLE home">
           <span className="brand-mark" aria-hidden="true">
@@ -103,7 +491,7 @@ export default function Home() {
             <i key={index} style={{ top: `${18 + index * 5.6}%` }} />
           ))}
         </div>
-        <div className="hero-grid">
+        <div className="hero-grid motion-stagger is-visible">
           <div className="hero-copy">
             <div className="eyebrow">
               <span className="node" />
@@ -166,6 +554,7 @@ export default function Home() {
             </div>
           </aside>
         </div>
+        <EvolutionSearch theme={theme} />
         <div className="the-edge" />
         <a className="scroll-cue" href="#overview">
           Explore the system <Arrow down />
@@ -173,7 +562,7 @@ export default function Home() {
       </section>
 
       <section className="section section-light" id="overview">
-        <div className="section-heading">
+        <div className="section-heading motion-stagger">
           <p className="kicker">01 / Overview</p>
           <h2>
             AI that improves
@@ -187,7 +576,7 @@ export default function Home() {
           </p>
         </div>
 
-        <figure className="media-frame wide-media">
+        <figure className="media-frame wide-media motion-reveal">
           <img
             src="./media/teaser.png"
             alt="OpenMLE system overview showing Gym, ERL, and Evo components"
@@ -199,7 +588,7 @@ export default function Home() {
           </figcaption>
         </figure>
 
-        <div className="system-grid">
+        <div className="system-grid motion-stagger">
           <article>
             <span className="system-index">01</span>
             <div>
@@ -229,7 +618,7 @@ export default function Home() {
           <span className="node" />
           Abstract
         </div>
-        <div className="abstract-copy">
+        <div className="abstract-copy motion-reveal">
           <p className="abstract-lead">
             Recursive self-improvement requires AI systems that improve the
             process of building AI.
@@ -247,7 +636,7 @@ export default function Home() {
 
       <section className="section section-dark" id="method">
         <div className="the-edge top-edge" />
-        <div className="section-heading inverse">
+        <div className="section-heading inverse motion-stagger">
           <p className="kicker">02 / Method</p>
           <h2>
             Four operators.
@@ -260,7 +649,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="operator-grid">
+        <div className="operator-grid motion-stagger">
           {operators.map((operator) => (
             <article key={operator.name}>
               <span>{operator.number}</span>
@@ -270,7 +659,7 @@ export default function Home() {
           ))}
         </div>
 
-        <figure className="media-frame dark-media">
+        <figure className="media-frame dark-media motion-reveal">
           <img
             src="./media/learning-rollouts.png"
             alt="Diagram showing how OpenMLE learns from executed rollouts"
@@ -284,7 +673,7 @@ export default function Home() {
       </section>
 
       <section className="section section-results" id="results">
-        <div className="section-heading">
+        <div className="section-heading motion-stagger">
           <p className="kicker">03 / Results</p>
           <h2>
             Training gains and search
@@ -293,10 +682,12 @@ export default function Home() {
           </h2>
         </div>
 
-        <div className="result-band">
+        <div className="result-band motion-reveal">
           <div className="result-primary">
             <span className="result-label">MLE-Bench Lite · Medal Average</span>
-            <strong>71.21%</strong>
+            <strong>
+              <CountUp value={71.21} suffix="%" />
+            </strong>
             <p>
               Frontis-MA1-35B with OpenMLE-Evo-Max under a fixed six GPU-hour
               per-task budget.
@@ -305,7 +696,9 @@ export default function Home() {
           <div className="result-steps" aria-label="Performance progression">
             <article>
               <span>Base model</span>
-              <strong>39.39%</strong>
+              <strong>
+                <CountUp value={39.39} suffix="%" />
+              </strong>
               <p>Qwen3.6-35B-A3B + OpenMLE-Evo</p>
             </article>
             <div className="step-connector" aria-hidden="true">
@@ -314,7 +707,9 @@ export default function Home() {
             </div>
             <article>
               <span>Post-trained</span>
-              <strong>60.61%</strong>
+              <strong>
+                <CountUp value={60.61} suffix="%" />
+              </strong>
               <p>Frontis-MA1-35B + OpenMLE-Evo</p>
             </article>
             <div className="step-connector" aria-hidden="true">
@@ -323,13 +718,15 @@ export default function Home() {
             </div>
             <article>
               <span>Search enhanced</span>
-              <strong>71.21%</strong>
+              <strong>
+                <CountUp value={71.21} suffix="%" />
+              </strong>
               <p>Frontis-MA1-35B + OpenMLE-Evo-Max</p>
             </article>
           </div>
         </div>
 
-        <figure className="media-frame results-figure">
+        <figure className="media-frame results-figure motion-reveal">
           <img
             src="./media/main-results.png"
             alt="Main MLE-Bench Lite comparison and parameter-performance Pareto frontier"
@@ -343,7 +740,7 @@ export default function Home() {
       </section>
 
       <section className="section sandbox-section">
-        <div className="sandbox-copy">
+        <div className="sandbox-copy motion-stagger">
           <p className="kicker">04 / Execution substrate</p>
           <h2>Every idea meets reality.</h2>
           <p>
@@ -366,7 +763,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <figure className="media-frame sandbox-figure">
+        <figure className="media-frame sandbox-figure motion-reveal">
           <img
             src="./media/sandbox-architecture.png"
             alt="OpenMLE sandbox architecture"
@@ -379,7 +776,7 @@ export default function Home() {
       </section>
 
       <section className="citation-section" id="citation">
-        <div>
+        <div className="motion-stagger">
           <p className="kicker">05 / Citation</p>
           <h2>Build on OpenMLE.</h2>
           <p>
@@ -388,7 +785,7 @@ export default function Home() {
             finalized.
           </p>
         </div>
-        <div className="citation-block">
+        <div className="citation-block motion-reveal">
           <pre>
             <code>{bibtex}</code>
           </pre>
