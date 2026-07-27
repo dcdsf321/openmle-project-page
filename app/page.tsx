@@ -97,6 +97,101 @@ function CountUp({
   return <span ref={numberRef}>{`0${suffix}`}</span>;
 }
 
+const benchmarkRows = [
+  {
+    label: "Base model",
+    detail: "Qwen3.6-35B-A3B + OpenMLE-Evo",
+    value: 39.39,
+    tone: "base",
+  },
+  {
+    label: "Post-trained",
+    detail: "Frontis-MA1-35B + OpenMLE-Evo",
+    value: 60.61,
+    tone: "trained",
+  },
+  {
+    label: "Search enhanced",
+    detail: "Frontis-MA1-35B + OpenMLE-Evo-Max",
+    value: 71.21,
+    tone: "best",
+  },
+];
+
+function BenchmarkBars() {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reducedMotion) {
+      setIsActive(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setIsActive(true);
+        observer.disconnect();
+      },
+      { threshold: 0.35 },
+    );
+    observer.observe(chart);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      className={`benchmark-bars${isActive ? " is-active" : ""}`}
+      ref={chartRef}
+      aria-label="Animated MLE-Bench Lite performance comparison"
+    >
+      <div className="benchmark-head">
+        <span>Performance progression</span>
+        <span>Medal avg. · higher is better</span>
+      </div>
+      <div className="benchmark-scale" aria-hidden="true">
+        <span>0</span>
+        <span>20</span>
+        <span>40</span>
+        <span>60</span>
+        <span>80%</span>
+      </div>
+      <div className="benchmark-grid">
+        {benchmarkRows.map((row, index) => (
+          <article className={`benchmark-row ${row.tone}`} key={row.label}>
+            <div className="benchmark-meta">
+              <span>{row.label}</span>
+              <small>{row.detail}</small>
+            </div>
+            <div className="benchmark-track">
+              <span
+                className="benchmark-fill"
+                style={{
+                  width: `${(row.value / 80) * 100}%`,
+                  transitionDelay: `${index * 140}ms`,
+                }}
+              />
+            </div>
+            <strong>
+              <CountUp value={row.value} suffix="%" />
+            </strong>
+          </article>
+        ))}
+      </div>
+      <p className="benchmark-note">
+        Fixed budget · six GPU-hours per task
+      </p>
+    </div>
+  );
+}
+
 type SearchNode = {
   parent: number | null;
   x: number;
@@ -129,13 +224,23 @@ const searchNodes: SearchNode[] = [
 function EvolutionSearch({ theme }: { theme: Theme }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const drawRef = useRef<(progress: number) => void>(() => undefined);
+  const progressRef = useRef(0);
+  const animationRef = useRef(0);
+  const [progress, setProgress] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [replay, setReplay] = useState(0);
-  const [hud, setHud] = useState({
-    nodes: 1,
-    best: searchNodes[0].score,
-    operator: searchNodes[0].operator,
-    complete: false,
-  });
+
+  progressRef.current = progress;
+  const exactProgress = progress * (searchNodes.length - 1);
+  const visibleCount = Math.min(
+    searchNodes.length,
+    Math.floor(exactProgress) + 1,
+  );
+  const visibleNodes = searchNodes.slice(0, visibleCount);
+  const bestScore = Math.max(...visibleNodes.map((node) => node.score));
+  const latestNode = visibleNodes[visibleNodes.length - 1];
+  const complete = progress >= 1;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -145,9 +250,6 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
     const palette = {
       background: theme === "dark" ? "#000000" : "#FFFFFF",
       gray: "#3D4145",
@@ -159,9 +261,6 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
     let width = 0;
     let height = 0;
     let pixelRatio = 1;
-    let frame = 0;
-    let startTime = 0;
-    let lastHudCount = 0;
 
     const resize = () => {
       const bounds = stage.getBoundingClientRect();
@@ -203,7 +302,7 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
         Math.floor(exactProgress) + 1,
       );
       const activeProgress = exactProgress - Math.floor(exactProgress);
-      const bestScore = Math.max(
+      const currentBestScore = Math.max(
         ...searchNodes.slice(0, visibleCount).map((node) => node.score),
       );
 
@@ -240,7 +339,7 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
       for (let index = 0; index < visibleCount; index += 1) {
         const node = searchNodes[index];
         const position = point(node);
-        const isBest = node.score === bestScore && !node.failed;
+        const isBest = node.score === currentBestScore && !node.failed;
         const nodeProgress =
           index === visibleCount - 1 && visibleCount < searchNodes.length
             ? Math.min(activeProgress * 2.2, 1)
@@ -281,51 +380,80 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
           context.fillStyle = palette.text;
           context.font = '12px "IBM Plex Mono", monospace';
           context.fillText(
-            bestScore.toFixed(2),
+            currentBestScore.toFixed(2),
             position.x + radius + 12,
             position.y + 4,
           );
         }
       }
-
-      if (visibleCount !== lastHudCount) {
-        lastHudCount = visibleCount;
-        const latest = searchNodes[visibleCount - 1];
-        setHud({
-          nodes: visibleCount,
-          best: bestScore,
-          operator: latest.operator,
-          complete: visibleCount === searchNodes.length,
-        });
-      }
     };
 
+    drawRef.current = draw;
     resize();
+    draw(progressRef.current);
     const resizeObserver = new ResizeObserver(() => {
       resize();
-      draw(reducedMotion ? 1 : 0);
+      draw(progressRef.current);
     });
     resizeObserver.observe(stage);
 
-    if (reducedMotion) {
-      draw(1);
-    } else {
-      const duration = 6200;
-      const animate = (time: number) => {
-        if (!startTime) startTime = time;
-        const progress = Math.min((time - startTime) / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        draw(eased);
-        if (progress < 1) frame = requestAnimationFrame(animate);
-      };
-      frame = requestAnimationFrame(animate);
-    }
-
     return () => {
-      cancelAnimationFrame(frame);
+      drawRef.current = () => undefined;
       resizeObserver.disconnect();
     };
-  }, [replay, theme]);
+  }, [theme]);
+
+  useEffect(() => {
+    drawRef.current(progress);
+  }, [progress]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reducedMotion) {
+      setProgress(1);
+      setIsPlaying(false);
+      return;
+    }
+
+    const from = progressRef.current;
+    if (from >= 1) {
+      setIsPlaying(false);
+      return;
+    }
+
+    let startTime = 0;
+    const duration = Math.max(700, 6200 * (1 - from));
+    const animate = (time: number) => {
+      if (!startTime) startTime = time;
+      const elapsed = Math.min((time - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - elapsed, 3);
+      const next = from + (1 - from) * eased;
+      setProgress(next);
+      if (elapsed < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+    animationRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [isPlaying, replay]);
+
+  const pause = () => {
+    cancelAnimationFrame(animationRef.current);
+    setIsPlaying(false);
+  };
+
+  const restart = () => {
+    cancelAnimationFrame(animationRef.current);
+    setProgress(0);
+    setReplay((value) => value + 1);
+    setIsPlaying(true);
+  };
 
   return (
     <div className="evolution-figure motion-reveal">
@@ -336,25 +464,57 @@ function EvolutionSearch({ theme }: { theme: Theme }) {
           aria-label="Animated OpenMLE evolutionary program search tree"
         />
         <div className="evolution-hud" aria-live="polite">
-          <span className="live-state">{hud.complete ? "COMPLETE" : "EVOLVING"}</span>
+          <span className="live-state">{complete ? "COMPLETE" : isPlaying ? "EVOLVING" : "PAUSED"}</span>
           <span>
-            nodes <b>{hud.nodes}</b>
+            nodes <b>{visibleCount}</b>
           </span>
           <span>
-            best <b>{hud.best.toFixed(2)}</b>
+            best <b>{bestScore.toFixed(2)}</b>
           </span>
           <span>
-            operator <b>{hud.operator}</b>
+            operator <b>{latestNode.operator}</b>
           </span>
         </div>
-        <button
-          className="replay-button"
-          type="button"
-          onClick={() => setReplay((value) => value + 1)}
-          aria-label="Replay evolutionary search animation"
-        >
-          Replay ↻
-        </button>
+        <div className="evolution-controls">
+          <button
+            className="play-button"
+            type="button"
+            onClick={() => {
+              if (complete) {
+                restart();
+              } else {
+                setIsPlaying((value) => !value);
+              }
+            }}
+          >
+            {complete ? "Replay ↻" : isPlaying ? "Pause Ⅱ" : "Play ▶"}
+          </button>
+          <div className="timeline">
+            <div className="timeline-track" aria-hidden="true">
+              <span style={{ width: `${progress * 100}%` }} />
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="1000"
+              value={Math.round(progress * 1000)}
+              onPointerDown={pause}
+              onInput={(event) => {
+                pause();
+                setProgress(Number(event.currentTarget.value) / 1000);
+              }}
+              aria-label="Scrub evolutionary search timeline"
+            />
+            <div className="timeline-labels" aria-hidden="true">
+              <span>00 / seed</span>
+              <span>{String(visibleCount).padStart(2, "0")} / {searchNodes.length} nodes</span>
+              <span>final / 0.71</span>
+            </div>
+          </div>
+          <button className="restart-button" type="button" onClick={restart}>
+            Reset
+          </button>
+        </div>
       </div>
       <div className="evolution-legend" aria-label="Search operator legend">
         <span>
@@ -693,37 +853,7 @@ export default function Home() {
               per-task budget.
             </p>
           </div>
-          <div className="result-steps" aria-label="Performance progression">
-            <article>
-              <span>Base model</span>
-              <strong>
-                <CountUp value={39.39} suffix="%" />
-              </strong>
-              <p>Qwen3.6-35B-A3B + OpenMLE-Evo</p>
-            </article>
-            <div className="step-connector" aria-hidden="true">
-              <span />
-              <i />
-            </div>
-            <article>
-              <span>Post-trained</span>
-              <strong>
-                <CountUp value={60.61} suffix="%" />
-              </strong>
-              <p>Frontis-MA1-35B + OpenMLE-Evo</p>
-            </article>
-            <div className="step-connector" aria-hidden="true">
-              <span />
-              <i />
-            </div>
-            <article>
-              <span>Search enhanced</span>
-              <strong>
-                <CountUp value={71.21} suffix="%" />
-              </strong>
-              <p>Frontis-MA1-35B + OpenMLE-Evo-Max</p>
-            </article>
-          </div>
+          <BenchmarkBars />
         </div>
 
         <figure className="media-frame results-figure motion-reveal">
