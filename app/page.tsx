@@ -118,6 +118,195 @@ const benchmarkRows = [
   },
 ];
 
+type ResultKind = "frontis" | "evo" | "general";
+type ResultFilter = "all" | "max" | ResultKind;
+
+const fullResults: Array<{
+  model: string;
+  score: number;
+  kind: ResultKind;
+  max?: boolean;
+  baseScore?: number;
+}> = [
+  { model: "Kimi K3", score: 72.73, kind: "general" },
+  { model: "GPT-5.6 Sol XHigh", score: 72.73, kind: "general" },
+  {
+    model: "Frontis-MA1-35B",
+    score: 71.21,
+    kind: "frontis",
+    max: true,
+    baseScore: 60.61,
+  },
+  { model: "GPT-5.5 XHigh", score: 68.18, kind: "general" },
+  { model: "GLM-5.2", score: 66.67, kind: "evo", max: true },
+  { model: "Kimi K2.6", score: 66.67, kind: "evo" },
+  { model: "MiniMax M3", score: 65.15, kind: "evo", max: true },
+  { model: "Grok-4.5", score: 65.15, kind: "evo" },
+  { model: "Opus 4.8", score: 63.64, kind: "general" },
+  { model: "Gemini 3.5 Pro High", score: 63.64, kind: "general" },
+  { model: "Sonnet 5 Medium", score: 59.1, kind: "general" },
+  { model: "Sonnet 5 XHigh", score: 59.09, kind: "general" },
+  { model: "Doubao Seed 2.1 Pro", score: 56.06, kind: "evo" },
+  { model: "LongCat-2.0", score: 56.06, kind: "evo" },
+  { model: "DS-V4 Pro", score: 54.55, kind: "evo" },
+  { model: "Qwen3.7 Plus", score: 54.55, kind: "evo" },
+  { model: "Sonnet 4.6", score: 54.55, kind: "general" },
+  { model: "Gemini 3.5 Pro No Think", score: 54.55, kind: "general" },
+  { model: "GLM-4.7", score: 51.52, kind: "evo" },
+  { model: "DS-V4 Flash", score: 51.52, kind: "evo" },
+  { model: "MiniMax M2.7", score: 50, kind: "evo" },
+  { model: "GPT-5.4 Medium", score: 50, kind: "general" },
+  { model: "MiMo V2.5-Pro", score: 40.91, kind: "evo" },
+  { model: "Qwen3.6-35B", score: 39.39, kind: "evo" },
+  { model: "Qwen3-30B Thinking", score: 34.85, kind: "evo" },
+  { model: "Step-3.7 Flash", score: 27.27, kind: "evo" },
+];
+
+function FullResultsChart() {
+  const explorerRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState<ResultFilter>("all");
+  const [isActive, setIsActive] = useState(false);
+
+  useEffect(() => {
+    const explorer = explorerRef.current;
+    if (!explorer) return;
+
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reducedMotion) {
+      setIsActive(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setIsActive(true);
+        observer.disconnect();
+      },
+      { threshold: 0.12 },
+    );
+    observer.observe(explorer);
+    return () => observer.disconnect();
+  }, []);
+
+  const visibleResults = fullResults.filter((result) => {
+    if (filter === "all") return true;
+    if (filter === "max") return result.max;
+    return result.kind === filter;
+  });
+
+  const selectFilter = (nextFilter: ResultFilter) => {
+    setIsActive(false);
+    setFilter(nextFilter);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setIsActive(true));
+    });
+  };
+
+  const filters: Array<{ value: ResultFilter; label: string }> = [
+    { value: "all", label: "All 26" },
+    { value: "frontis", label: "Frontis" },
+    { value: "max", label: "Evo-Max" },
+    { value: "evo", label: "Other Evo" },
+    { value: "general", label: "General" },
+  ];
+
+  return (
+    <figure
+      className={`results-explorer motion-reveal${isActive ? " is-active" : ""}`}
+      ref={explorerRef}
+    >
+      <div className="explorer-head">
+        <div>
+          <span className="result-label">Interactive benchmark</span>
+          <h3>All models · all harness results</h3>
+        </div>
+        <div className="result-filters" aria-label="Filter benchmark results">
+          {filters.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              className={filter === item.value ? "is-selected" : ""}
+              aria-pressed={filter === item.value}
+              onClick={() => selectFilter(item.value)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="explorer-legend" aria-label="Result type legend">
+        <span><i className="frontis" /> Frontis · Evo</span>
+        <span><i className="evo" /> Other models · Evo</span>
+        <span><i className="max" /> OpenMLE-Evo-Max</span>
+        <span><i className="general" /> General coding agents</span>
+      </div>
+
+      <div className="explorer-axis" aria-hidden="true">
+        <span>20</span>
+        <span>40</span>
+        <span>60</span>
+        <span>80%</span>
+      </div>
+
+      <div className="full-result-grid">
+        {visibleResults.map((result, index) => {
+          const width = Math.max(
+            0,
+            ((result.score - 20) / (80 - 20)) * 100,
+          );
+          const baseWidth = result.baseScore
+            ? ((result.baseScore - 20) / (80 - 20)) * 100
+            : width;
+          return (
+            <article
+              className={`full-result-row ${result.kind}${result.max ? " is-max" : ""}`}
+              key={result.model}
+            >
+              <div className="full-result-meta">
+                <span>{String(fullResults.indexOf(result) + 1).padStart(2, "0")}</span>
+                <strong>{result.model}</strong>
+              </div>
+              <div className="full-result-track">
+                <span
+                  className="full-result-fill"
+                  style={{
+                    width: `${baseWidth}%`,
+                    transitionDelay: `${Math.min(index, 12) * 55}ms`,
+                  }}
+                />
+                {result.baseScore && (
+                  <span
+                    className="full-result-boost"
+                    style={{
+                      left: `${baseWidth}%`,
+                      width: `${width - baseWidth}%`,
+                      transitionDelay: `${Math.min(index, 12) * 55 + 160}ms`,
+                    }}
+                  />
+                )}
+                {result.max && !result.baseScore && (
+                  <i className="max-marker" style={{ left: `${width}%` }} />
+                )}
+              </div>
+              <b>{result.score.toFixed(2)}</b>
+            </article>
+          );
+        })}
+      </div>
+
+      <figcaption>
+        <span>Figure 03 · Live</span>
+        Medal average@3 on MLE-Bench Lite. Axis starts at 20; use the filters
+        to isolate harness families and Evo-Max results.
+      </figcaption>
+    </figure>
+  );
+}
+
 function BenchmarkBars() {
   const chartRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -856,17 +1045,7 @@ export default function Home() {
           <BenchmarkBars />
         </div>
 
-        <figure className="media-frame results-figure motion-reveal">
-          <img
-            src="./media/main-results.png"
-            alt="Main MLE-Bench Lite comparison and parameter-performance Pareto frontier"
-          />
-          <figcaption>
-            <span>Figure 03</span>
-            Main model–harness results on MLE-Bench Lite. Values are drawn from
-            the current paper draft.
-          </figcaption>
-        </figure>
+        <FullResultsChart />
       </section>
 
       <section className="section sandbox-section">
