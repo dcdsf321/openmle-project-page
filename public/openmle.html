@@ -1120,7 +1120,7 @@ footer{background:var(--black);color:var(--white);margin-top:40px;}
       underlying learning trajectory. Hover the chart for exact checkpoint values.
     </p>
     <div class="rl-summary rv-st rv">
-      <div class="rl-stat"><p class="v">221</p><p class="k">RL updates · stitched steps 570–790</p></div>
+      <div class="rl-stat"><p class="v">221</p><p class="k">RL updates · training steps 0–220</p></div>
       <div class="rl-stat"><p class="v">0.180 → 0.400</p><p class="k">Rollout reward · first to final step</p></div>
       <div class="rl-stat peak"><p class="v">0.404</p><p class="k">Peak validation base reward</p></div>
       <div class="rl-stat"><p class="v">31</p><p class="k">Peak validation medal count</p></div>
@@ -1355,7 +1355,7 @@ const rc=document.getElementById('resChart');if(rc)bio.observe(rc);
       ctx.strokeStyle='rgba(240,242,244,.08)';
       ctx.beginPath();ctx.moveTo(xx,pad.t);ctx.lineTo(xx,pad.t+plotH);ctx.stroke();
       ctx.fillStyle='rgba(240,242,244,.46)';ctx.textAlign='center';
-      ctx.fillText(String(step+570),xx,h-14);
+      ctx.fillText(String(step),xx,h-14);
     });
 
     if(!state.loaded){
@@ -1422,7 +1422,7 @@ const rc=document.getElementById('resChart');if(rc)bio.observe(rc);
     const px=Math.max(pad.l,Math.min(event.clientX-rect.left,w-pad.r));
     state.hover=Math.round((px-pad.l)/(w-pad.l-pad.r)*(state.data.length-1));
     const d=state.data[state.hover];
-    tip.innerHTML='<b>step '+d.original+'</b><br>'+
+    tip.innerHTML='<b>step '+d.step+'</b><br>'+
       '<span class="cy">rollout '+d.rollout.toFixed(3)+'</span> · EMA '+state.ema[state.hover].toFixed(3)+'<br>'+
       '<span class="or">validation '+(d.validation==null?'—':d.validation.toFixed(3))+'</span><br>'+
       'medals '+(d.medals==null?'—':Math.round(d.medals));
